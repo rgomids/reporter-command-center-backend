@@ -1,0 +1,16 @@
+version: '3.9'
+services:
+  app:
+    image: daily-reporter:latest
+    restart: always
+    env_file:
+      - ../.env
+    ports:
+      - "8000:8000"
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ${AWS_REGION}
+        awslogs-group: daily-reporter/app
+        awslogs-stream: app
+
