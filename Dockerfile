@@ -1,22 +1,23 @@
-FROM python:3.11-slim
-
+## Build stage
+FROM golang:1.22-alpine AS builder
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PORT=8000
+# Enable static build for minimal runtime image
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential curl && rm -rf /var/lib/apt/lists/*
+COPY go.mod ./
+RUN go mod download || true
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+RUN go build -o /out/server ./cmd/server
 
-COPY app ./app
-COPY Makefile ./
+## Runtime stage
+FROM alpine:3.20
+WORKDIR /app
+
+ENV PORT=8000
+COPY --from=builder /out/server /usr/local/bin/server
 
 EXPOSE 8000
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
+CMD ["/usr/local/bin/server"]
 

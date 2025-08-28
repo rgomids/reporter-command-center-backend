@@ -1,43 +1,78 @@
 # Daily Reporter Bot — Backend
 
-Arquitetura hexagonal (Domínio, Aplicação, Adapters, Infra) com FastAPI e SQLAlchemy. Implementa autenticação JWT multi-tenant, RBAC mínimo, integrações (Teams/IA via ports), scheduler local, coleta e respostas, sumarização diária, relatórios e exportação CSV, auditoria, e qualidade com testes, cobertura e complexidade ciclomática.
+Este repositório está sendo refatorado para Go. A implementação original em Python foi movida para `legacy/` e permanece disponível para referência e eventual manutenção.
 
 Links úteis:
 - ROADMAP: `ROADMAP.md`
 - Deploy AWS: `DEPLOY_AWS.md`
 - Quality gate: `QUALITY_GATE.md`
 
-## Requisitos
-- Python 3.11+
-- pip
+## Estrutura
+- Código Go atual: `cmd/server`, `Dockerfile`, `Makefile`, `go.mod`
+- Implementação Python legada: `legacy/`
 
-## Instalação
-```
-cp .env.example .env
-pip install -r requirements.txt
-```
+## Go — Requisitos
+- Go 1.22+
 
-## Execução (dev)
+## Go — Execução (dev)
 ```
-make dev
-# API: http://localhost:8000
-# OpenAPI: http://localhost:8000/docs
+cp .env.example .env  # opcional
+make run              # PORT=8000 por padrão
+# http://localhost:8000           -> {"service":"reporter-command-center-backend","status":"ok"}
+# http://localhost:8000/healthz   -> ok
 ```
 
-## Testes e qualidade
+## Go — Build e Testes
 ```
-make test      # cobertura
-make cc        # complexidade ciclomática
-make lint      # ruff
-make typecheck # mypy
-make quality   # tudo acima
+make build   # gera binário em bin/server
+make test    # testes Go (quando adicionados)
 ```
 
-## Endpoints principais
+## Endpoints (Go)
 - Auth: POST `/auth/login`, GET `/auth/session`
-- Org Config: GET/PUT `/org/config`
-- Integrations: Teams (validate/save/sync), AI (save)
-- Directory: CRUD Teams (`/teams`), CRUD Users (`/users`), Import (`/users/import`)
-- Collection: GET `/collections/ticks`, POST `/webhooks/teams`
-- Reporting: GET `/reports/aggregate`, GET `/reports/export`
-- Admin/Audit: GET `/admin/audit`
+- Org Config: GET `/org/config`, PUT `/org/config`
+- Integrations (Teams):
+  - POST `/integrations/teams/validate`
+  - POST `/integrations/teams/save`
+  - POST `/integrations/teams/send`
+  - POST `/webhooks/teams` (sem Auth; assinatura HMAC)
+- Integrations (AI):
+  - POST `/integrations/ai/save`
+  - POST `/ai/summarize`
+- Coletas: GET `/collections/responses`
+
+### Fluxo rápido (curl)
+1) Login e token
+```
+curl -s localhost:8000/auth/login -X POST -H 'Content-Type: application/json' \
+  -d '{"tenant_id":"t1","user_id":"u1","email":"u1@example.com","password":"x","role":"admin"}' | jq -r .access_token
+```
+2) Salvar integração Teams (use seu segredo)
+```
+TOKEN=...    # do passo anterior
+SECRET=super-secret
+curl -s localhost:8000/integrations/teams/save -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"app_id":"app","app_secret":"sec","webhook_secret":"'"$SECRET"'"}'
+```
+3) Enviar um webhook assinado
+```
+BODY='{"channel_id":"ch1","user_id":"u1","text":"Olá do Teams!"}'
+SIG=$(printf "%s" "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -binary | xxd -p -c 256)
+curl -s localhost:8000/webhooks/teams?tenant=t1 -X POST \
+  -H "X-Event-ID: ev-123" -H "X-Signature: $SIG" -H 'Content-Type: application/json' \
+  -d "$BODY"
+```
+4) Ver respostas coletadas
+```
+curl -s localhost:8000/collections/responses -H "Authorization: Bearer $TOKEN"
+```
+5) Configurar e usar IA (stub)
+```
+curl -s localhost:8000/integrations/ai/save -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"provider":"stub","api_key":"none"}'
+curl -s localhost:8000/ai/summarize -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"text":"Resumo de exemplo muito longo..."}'
+```
+
+## Python (legado)
+A versão anterior (FastAPI, SQLAlchemy, etc.) está em `legacy/`. Consulte o `legacy/Makefile` e `legacy/Dockerfile` para executar/testar a versão Python.
