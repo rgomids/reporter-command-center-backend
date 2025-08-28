@@ -28,6 +28,7 @@ func main() {
     r.Use(middleware.RequestID)
     r.Use(middleware.Logger)
     r.Use(middleware.Recoverer)
+    r.Use(httpx.WithCORS(cfg))
     r.Use(httpx.WithAuth(cfg))
 
     r.Get("/", func(w http.ResponseWriter, r *http.Request) {

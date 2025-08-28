@@ -47,3 +47,41 @@ func GetClaims(r *http.Request) (domain.Claims, bool) {
     c, ok := v.(domain.Claims)
     return c, ok
 }
+
+// WithCORS adds permissive CORS headers and handles preflight.
+// Allowed origins can be configured via cfg.CORSAllowedOrigins (comma-separated) or "*".
+func WithCORS(cfg config.Config) func(http.Handler) http.Handler {
+    allowed := strings.Split(cfg.CORSAllowedOrigins, ",")
+    for i := range allowed {
+        allowed[i] = strings.TrimSpace(allowed[i])
+    }
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            origin := r.Header.Get("Origin")
+            allowOrigin := ""
+            if cfg.CORSAllowedOrigins == "*" {
+                allowOrigin = "*"
+            } else {
+                for _, o := range allowed {
+                    if o == origin {
+                        allowOrigin = origin
+                        break
+                    }
+                }
+            }
+            if allowOrigin != "" {
+                w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
+                w.Header().Set("Vary", "Origin")
+            }
+            w.Header().Set("Access-Control-Allow-Credentials", "true")
+            w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Requested-With")
+            w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+
+            if r.Method == http.MethodOptions {
+                w.WriteHeader(http.StatusNoContent)
+                return
+            }
+            next.ServeHTTP(w, r)
+        })
+    }
+}
