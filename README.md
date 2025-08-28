@@ -28,6 +28,29 @@ make build   # gera binário em bin/server
 make test    # testes Go (quando adicionados)
 ```
 
+## Docker & Compose
+```
+# Backend image
+make docker-build
+make docker-run    # expõe 8000
+
+# Stack completa (db + backend + frontend)
+make compose-up
+make compose-logs
+make compose-down
+```
+
+## Qualidade de Código
+```
+make fmt          # formata com gofmt -s
+make fmt-check    # verifica formatação
+make vet          # análises estáticas padrão
+make lint         # golangci-lint (usa binário local ou container)
+make test-coverage COVERAGE_THRESHOLD=80  # gera cobertura e aplica limite
+make quality      # fmt-check + vet + lint + test-coverage
+```
+Configurações adicionais do linter em `.golangci.yml`. O limite de cobertura padrão é 0% (para não bloquear enquanto os testes são escritos); ajuste via `COVERAGE_THRESHOLD=80` em CI.
+
 ## Endpoints (Go)
 - Auth: POST `/auth/login`, GET `/auth/session`
 - Org Config: GET `/org/config`, PUT `/org/config`
