@@ -27,7 +27,7 @@ jobs:
       - name: Cyclomatic Complexity
         run: make cc
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage
           path: reports/coverage.xml
